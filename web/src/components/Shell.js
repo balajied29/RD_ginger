@@ -8,10 +8,24 @@ import Nav from './Nav';
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
+const USER_KEY = 'ledger_user';
+
+// Session is validated against the API at most once per minute — page
+// switches render instantly from the cached user instead of blocking
+// on a network round-trip every time.
+let lastValidated = 0;
+const VALIDATE_MS = 60 * 1000;
+
+export function cacheUser(u) {
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify(u));
+  } catch { /* storage full/blocked — cache is best-effort */ }
+}
+
 /**
  * Auth guard + page chrome for every protected screen. Redirects to
- * /login when there is no token, restores the session via /api/auth/me,
- * and registers the PWA service worker.
+ * /login when there is no token; renders instantly from the cached
+ * user and re-validates the session in the background.
  */
 export default function Shell({ children }) {
   const router = useRouter();
@@ -23,9 +37,19 @@ export default function Shell({ children }) {
       router.replace('/login');
       return;
     }
-    api('/api/auth/me')
-      .then((r) => setUser(r.data))
-      .catch(() => setFailed(true)); // 401 already redirects via api()
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { /* ignore */ }
+    if (cached) setUser(cached);
+
+    if (!cached || Date.now() - lastValidated > VALIDATE_MS) {
+      api('/api/auth/me')
+        .then((r) => {
+          lastValidated = Date.now();
+          setUser(r.data);
+          cacheUser(r.data);
+        })
+        .catch(() => { if (!cached) setFailed(true); }); // 401 already redirects via api()
+    }
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -34,6 +58,7 @@ export default function Shell({ children }) {
 
   function logout() {
     setToken(null);
+    try { localStorage.removeItem(USER_KEY); } catch { /* ignore */ }
     router.replace('/login');
   }
 

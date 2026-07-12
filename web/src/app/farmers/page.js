@@ -30,7 +30,7 @@ export default function FarmersPage() {
       />
 
       {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
-      {loading && <p className="text-slate-600">Loading…</p>}
+      {loading && !farmers.length && <p className="text-slate-600">Loading…</p>}
 
       {!loading && !farmers.length && (
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-slate-600">
@@ -38,8 +38,8 @@ export default function FarmersPage() {
         </p>
       )}
 
-      {!loading && farmers.length > 0 && (
-        <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200">
+      {farmers.length > 0 && (
+        <ul className={`divide-y divide-slate-200 rounded-lg border border-slate-200 ${loading ? 'opacity-60' : ''}`}>
           {farmers.map((f) => (
             <li key={f._id}>
               <Link

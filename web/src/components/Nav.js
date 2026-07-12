@@ -21,7 +21,7 @@ export default function Nav({ user, onLogout }) {
 
   return (
     <>
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white print:hidden">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-2">
           <span className="text-lg font-semibold">LEDGER</span>
           <div className="flex items-center gap-2">
@@ -46,7 +46,7 @@ export default function Nav({ user, onLogout }) {
         </div>
       </header>
 
-      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] print:hidden">
         <div className="mx-auto grid max-w-3xl grid-cols-4">
           {tabs.map(({ href, label, Icon }) => {
             // startsWith keeps Farmers lit on /farmers/[id] detail pages.

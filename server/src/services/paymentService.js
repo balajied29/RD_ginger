@@ -8,6 +8,7 @@ const { dateFilter, PAGE_SIZE } = require('./purchaseService');
  * Overpayment is ALLOWED; when amount exceeds the farmer's balance at
  * the time of recording, the response carries warning: "OVERPAYMENT"
  * (canonical business rule). Balance is checked BEFORE inserting.
+ * balanceAfter feeds the receipt the UI shows once payment is saved.
  */
 async function createPayment(data, actor) {
   const balance = await getFarmerBalance(data.farmerId); // throws 404 if farmer missing
@@ -21,7 +22,11 @@ async function createPayment(data, actor) {
     after: payment.toObject(),
   });
 
-  return { payment, warning: data.amount > balance ? 'OVERPAYMENT' : undefined };
+  return {
+    payment,
+    warning: data.amount > balance ? 'OVERPAYMENT' : undefined,
+    balanceAfter: Math.round((balance - payment.amount) * 100) / 100,
+  };
 }
 
 async function listPayments({ farmerId, from, to, page = 1 }) {

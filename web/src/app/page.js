@@ -48,10 +48,11 @@ export default function DashboardPage() {
 
       {error && <p className="mb-4 text-red-700">{error}</p>}
 
-      {loading || !data ? (
-        <p className="text-slate-600">Loading…</p>
+      {/* Stale-while-revalidate: cached data renders instantly, dimmed while refreshing. */}
+      {!data ? (
+        !error && <p className="text-slate-600">Loading…</p>
       ) : (
-        <>
+        <div className={loading ? 'opacity-60' : ''}>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Stat label="Bought (kg)" value={formatKg(data.totalKg)} />
             <Stat label="Bought (₹)" value={formatINR(data.totalPayable)} />
@@ -93,7 +94,7 @@ export default function DashboardPage() {
               ))}
             </ul>
           )}
-        </>
+        </div>
       )}
     </Shell>
   );

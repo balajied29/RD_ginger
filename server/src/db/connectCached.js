@@ -14,7 +14,14 @@ async function ensureConnection() {
   if (!uri) throw new Error('MONGODB_URI is not set');
 
   mongoose.set('strictQuery', true);
-  cached = await mongoose.connect(uri, { serverSelectionTimeoutMS: 8000 });
+  cached = await mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 8000,
+    // Serverless: small pool, drop idle sockets fast — many tiny
+    // instances instead of one big server.
+    maxPoolSize: 5,
+    minPoolSize: 0,
+    maxIdleTimeMS: 60000,
+  });
   return cached;
 }
 

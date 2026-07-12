@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { httpError } = require('../utils/respond');
+const { invalidateUserCache } = require('../middleware/requireAuth');
 
 const BCRYPT_COST = 12;
 
@@ -49,6 +50,7 @@ async function updateUser(id, patch, actor) {
   if (!user) throw httpError(404, 'User not found');
   Object.assign(user, patch);
   await user.save();
+  invalidateUserCache(user._id); // deactivation/role change applies immediately
   return publicUser(user);
 }
 

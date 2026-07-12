@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, setToken } from '../../lib/api';
+import { cacheUser } from '../../components/Shell';
 
 /** S1 — Login. */
 export default function LoginPage() {
@@ -19,6 +20,7 @@ export default function LoginPage() {
     try {
       const r = await api('/api/auth/login', { method: 'POST', body: { email, password } });
       setToken(r.data.token);
+      cacheUser(r.data.user);
       router.replace('/');
     } catch (err) {
       setError(err.message);

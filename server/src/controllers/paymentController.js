@@ -3,8 +3,8 @@ const { ok } = require('../utils/respond');
 const paymentService = require('../services/paymentService');
 
 const create = asyncHandler(async (req, res) => {
-  const { payment, warning } = await paymentService.createPayment(req.body, req.user);
-  ok(res, payment, { status: 201, warning });
+  const { payment, warning, balanceAfter } = await paymentService.createPayment(req.body, req.user);
+  ok(res, { ...payment.toObject(), balanceAfter }, { status: 201, warning });
 });
 
 const list = asyncHandler(async (req, res) => {
