@@ -12,6 +12,10 @@ const { fail } = require('./utils/respond');
 function createApp() {
   const app = express();
 
+  // Behind Vercel/any proxy the client IP arrives via X-Forwarded-For;
+  // without this, express-rate-limit rejects requests outright.
+  app.set('trust proxy', 1);
+
   // CORS locked to the frontend origin (Section 4.2).
   app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }));
   app.use(express.json({ limit: '1mb' }));
