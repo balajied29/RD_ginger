@@ -5,20 +5,22 @@ const { istPeriodStart } = require('../utils/istDates');
 const round2 = (n) => Math.round(n * 100) / 100;
 
 async function periodTotals(start) {
-  const [p] = await Purchase.aggregate([
-    { $match: { date: { $gte: start } } },
-    {
-      $group: {
-        _id: null,
-        totalKg: { $sum: '$totalKg' },
-        totalPayable: { $sum: '$totalAmount' },
-        purchaseCount: { $sum: 1 },
+  const [[p], [pay]] = await Promise.all([
+    Purchase.aggregate([
+      { $match: { date: { $gte: start } } },
+      {
+        $group: {
+          _id: null,
+          totalKg: { $sum: '$totalKg' },
+          totalPayable: { $sum: '$totalAmount' },
+          purchaseCount: { $sum: 1 },
+        },
       },
-    },
-  ]);
-  const [pay] = await Payment.aggregate([
-    { $match: { date: { $gte: start } } },
-    { $group: { _id: null, totalPaid: { $sum: '$amount' } } },
+    ]),
+    Payment.aggregate([
+      { $match: { date: { $gte: start } } },
+      { $group: { _id: null, totalPaid: { $sum: '$amount' } } },
+    ]),
   ]);
   return {
     totalKg: round2(p ? p.totalKg : 0),
@@ -30,11 +32,9 @@ async function periodTotals(start) {
 
 /** Outstanding is all-time by definition: Σ all purchases − Σ all payments. */
 async function allTimeOutstanding() {
-  const [p] = await Purchase.aggregate([
-    { $group: { _id: null, total: { $sum: '$totalAmount' } } },
-  ]);
-  const [pay] = await Payment.aggregate([
-    { $group: { _id: null, total: { $sum: '$amount' } } },
+  const [[p], [pay]] = await Promise.all([
+    Purchase.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
+    Payment.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }]),
   ]);
   return round2((p ? p.total : 0) - (pay ? pay.total : 0));
 }

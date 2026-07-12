@@ -10,7 +10,11 @@ function errorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
 
   if (err.status) return fail(res, err.status, err.message);
-  if (err.name === 'CastError') return fail(res, 400, 'Invalid id format');
+  // CastError from Mongoose queries; BSONError from explicit ObjectId
+  // construction (e.g. in aggregation matches) — both are bad client ids.
+  if (err.name === 'CastError' || err.name === 'BSONError') {
+    return fail(res, 400, 'Invalid id format');
+  }
   if (err.name === 'ValidationError') return fail(res, 400, err.message);
   if (err.type === 'entity.parse.failed') return fail(res, 400, 'Malformed JSON body');
 

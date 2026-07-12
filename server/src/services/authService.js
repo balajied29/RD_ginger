@@ -38,7 +38,13 @@ async function listUsers() {
   return users.map(publicUser);
 }
 
-async function updateUser(id, patch) {
+async function updateUser(id, patch, actor) {
+  // Lockout guard: an admin cannot deactivate or demote themselves.
+  if (String(actor._id) === String(id)) {
+    if (patch.active === false || (patch.role && patch.role !== 'admin')) {
+      throw httpError(400, 'You cannot deactivate or demote your own account');
+    }
+  }
   const user = await User.findById(id);
   if (!user) throw httpError(404, 'User not found');
   Object.assign(user, patch);

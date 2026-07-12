@@ -19,7 +19,7 @@ const listUsers = asyncHandler(async (req, res) => {
 });
 
 const updateUser = asyncHandler(async (req, res) => {
-  ok(res, await authService.updateUser(req.params.id, req.body));
+  ok(res, await authService.updateUser(req.params.id, req.body, req.user));
 });
 
 const changePassword = asyncHandler(async (req, res) => {

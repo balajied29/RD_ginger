@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const Farmer = require('../models/Farmer');
+const Purchase = require('../models/Purchase');
+const Payment = require('../models/Payment');
 const { httpError } = require('../utils/respond');
 const { logAudit } = require('./auditService');
 
@@ -60,14 +62,36 @@ async function createFarmer(data, actor) {
   return { ...farmer.toObject(), totalPurchased: 0, totalPaid: 0, balance: 0 };
 }
 
+/**
+ * List is 3 flat queries merged in memory (farmers + one $group over
+ * purchases + one over payments) instead of 2 pipeline $lookups per
+ * farmer — constant query count however many farmers exist.
+ */
 async function listFarmers(search = '') {
   const match = search
     ? { name: { $regex: escapeRegex(search), $options: 'i' } }
     : {};
-  return Farmer.aggregate([{ $match: match }, { $sort: { name: 1 } }, ...balanceStages]);
+  const [farmers, purchaseTotals, paymentTotals] = await Promise.all([
+    Farmer.find(match).sort({ name: 1 }).lean(),
+    Purchase.aggregate([{ $group: { _id: '$farmerId', total: { $sum: '$totalAmount' } } }]),
+    Payment.aggregate([{ $group: { _id: '$farmerId', total: { $sum: '$amount' } } }]),
+  ]);
+  const bought = new Map(purchaseTotals.map((r) => [String(r._id), r.total]));
+  const paid = new Map(paymentTotals.map((r) => [String(r._id), r.total]));
+  return farmers.map((f) => {
+    const totalPurchased = bought.get(String(f._id)) || 0;
+    const totalPaid = paid.get(String(f._id)) || 0;
+    return {
+      ...f,
+      totalPurchased,
+      totalPaid,
+      balance: Math.round((totalPurchased - totalPaid) * 100) / 100,
+    };
+  });
 }
 
 async function getFarmer(id) {
+  if (!mongoose.isValidObjectId(id)) throw httpError(404, 'Farmer not found');
   const [farmer] = await Farmer.aggregate([
     { $match: { _id: new mongoose.Types.ObjectId(id) } },
     ...balanceStages,

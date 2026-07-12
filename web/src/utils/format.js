@@ -3,7 +3,9 @@
 const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 });
 
 export function formatINR(n) {
-  return `₹${inr.format(n ?? 0)}`;
+  const v = n ?? 0;
+  // Sign goes before the ₹ symbol: −₹500, not ₹-500.
+  return `${v < 0 ? '−' : ''}₹${inr.format(Math.abs(v))}`;
 }
 
 export function formatKg(n) {

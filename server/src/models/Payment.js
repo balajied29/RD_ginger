@@ -42,4 +42,12 @@ const paymentSchema = new mongoose.Schema(
 // Required by Section 4.6 for ledger and per-farmer queries.
 paymentSchema.index({ farmerId: 1, date: -1 });
 
+// Normalize to 2dp so ledger arithmetic never accumulates float noise.
+paymentSchema.pre('validate', function roundAmount(next) {
+  if (typeof this.amount === 'number') {
+    this.amount = Math.round(this.amount * 100) / 100;
+  }
+  next();
+});
+
 module.exports = mongoose.model('Payment', paymentSchema);

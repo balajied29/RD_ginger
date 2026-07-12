@@ -49,7 +49,8 @@ export default function Nav({ user, onLogout }) {
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto grid max-w-3xl grid-cols-4">
           {tabs.map(({ href, label, Icon }) => {
-            const active = pathname === href;
+            // startsWith keeps Farmers lit on /farmers/[id] detail pages.
+            const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
             return (
               <Link
                 key={href}
