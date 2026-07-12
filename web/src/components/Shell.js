@@ -62,7 +62,7 @@ export default function Shell({ children }) {
   return (
     <AuthContext.Provider value={{ user, logout }}>
       <Nav user={user} onLogout={logout} />
-      <main className="mx-auto w-full max-w-3xl px-4 pb-24 pt-4">{children}</main>
+      <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-4 sm:px-6">{children}</main>
     </AuthContext.Provider>
   );
 }

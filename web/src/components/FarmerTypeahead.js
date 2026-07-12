@@ -27,10 +27,10 @@ export default function FarmerTypeahead({ value, onSelect }) {
     return (
       <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
         <div>
-          <div className="font-medium">{value.name}</div>
+          <div className="text-lg font-medium">{value.name}</div>
           <div className="text-sm text-slate-600">
             {value.village ? `${value.village} · ` : ''}
-            Balance:{' '}
+            To pay:{' '}
             <span className={`tabular-nums ${value.balance > 0 ? 'text-red-700' : 'text-green-700'}`}>
               {formatINR(value.balance)}
             </span>
@@ -68,8 +68,8 @@ export default function FarmerTypeahead({ value, onSelect }) {
         value={q}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="Search farmer by name…"
-        className="min-h-[44px] w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-blue-700 focus:outline-none"
+        placeholder="Farmer name…"
+        className="min-h-[48px] w-full rounded-lg border border-slate-200 px-3 py-2 text-lg focus:border-blue-700 focus:outline-none"
       />
       {error && <p className="mt-1 text-sm text-red-700">{error}</p>}
       {open && (
@@ -97,11 +97,11 @@ export default function FarmerTypeahead({ value, onSelect }) {
               disabled={busy}
               className="min-h-[44px] w-full px-3 py-2 text-left text-blue-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
             >
-              + Create farmer “{q.trim()}”
+              + Add “{q.trim()}”
             </button>
           )}
           {!farmers.length && !q.trim() && (
-            <div className="px-3 py-3 text-sm text-slate-600">Type to search…</div>
+            <div className="px-3 py-3 text-sm text-slate-600">Type a name…</div>
           )}
         </div>
       )}

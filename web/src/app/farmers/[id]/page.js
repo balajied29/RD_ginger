@@ -6,7 +6,16 @@ import Shell from '../../../components/Shell';
 import { api } from '../../../lib/api';
 import { formatINR, formatKg, formatDate } from '../../../utils/format';
 
-/** S6 — Farmer Ledger: chronological debits/credits with running balance. */
+function entryLabel(e) {
+  return e.type === 'purchase'
+    ? `Bought · ${e.crop} · ${e.bagCount} bags · ${formatKg(e.totalKg)}`
+    : `Paid · ${e.mode.toUpperCase()}`;
+}
+
+/**
+ * S6 — Farmer ledger. Cards on phones (no sideways scrolling),
+ * classic table from md up. Words kept minimal: Bought / Paid / Due.
+ */
 export default function FarmerLedgerPage() {
   const { id } = useParams();
   const [data, setData] = useState(null);
@@ -31,29 +40,26 @@ export default function FarmerLedgerPage() {
   useEffect(() => { load('', ''); }, [load]);
 
   const inputCls =
-    'min-h-[44px] w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-blue-700 focus:outline-none';
+    'min-h-[48px] w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-blue-700 focus:outline-none';
+  const dueTone = (n) => (n > 0 ? 'text-red-700' : 'text-green-700');
 
   return (
     <Shell>
-      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-4 text-red-700">{error}</p>}
       {loading && <p className="text-slate-600">Loading…</p>}
 
       {!loading && data && (
         <>
-          <div className="mb-4 flex items-start justify-between">
-            <div>
-              <h1 className="text-xl font-semibold">{data.farmer.name}</h1>
-              <p className="text-sm text-slate-600">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold">{data.farmer.name}</h1>
+              <p className="truncate text-sm text-slate-600">
                 {[data.farmer.village, data.farmer.phone].filter(Boolean).join(' · ') || '—'}
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-slate-600">Balance due</div>
-              <div
-                className={`text-xl font-semibold tabular-nums ${
-                  data.closingBalance > 0 ? 'text-red-700' : 'text-green-700'
-                }`}
-              >
+            <div className="shrink-0 text-right">
+              <div className="text-sm text-slate-600">To pay</div>
+              <div className={`text-2xl font-semibold tabular-nums ${dueTone(data.closingBalance)}`}>
                 {formatINR(data.closingBalance)}
               </div>
             </div>
@@ -61,66 +67,99 @@ export default function FarmerLedgerPage() {
 
           <form
             onSubmit={(e) => { e.preventDefault(); load(from, to); }}
-            className="mb-4 flex items-end gap-2"
+            className="mb-4 grid grid-cols-2 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]"
           >
-            <label className="block flex-1">
+            <label className="block">
               <span className="mb-1 block text-sm text-slate-600">From</span>
               <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
             </label>
-            <label className="block flex-1">
+            <label className="block">
               <span className="mb-1 block text-sm text-slate-600">To</span>
               <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls} />
             </label>
             <button
               type="submit"
-              className="min-h-[44px] rounded-lg bg-blue-700 px-4 text-white transition-colors hover:bg-blue-800"
+              className="col-span-2 min-h-[48px] rounded-lg bg-blue-700 px-5 text-white transition-colors hover:bg-blue-800 sm:col-span-1"
             >
-              Apply
+              Show
             </button>
           </form>
 
           {!data.entries.length ? (
             <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-slate-600">
-              No transactions in this range.
+              Nothing in these dates.
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full min-w-[560px] text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                    <th className="px-3 py-2 font-medium">Date</th>
-                    <th className="px-3 py-2 font-medium">Particulars</th>
-                    <th className="px-3 py-2 text-right font-medium">Debit</th>
-                    <th className="px-3 py-2 text-right font-medium">Credit</th>
-                    <th className="px-3 py-2 text-right font-medium">Balance</th>
-                  </tr>
-                </thead>
-                <tbody className="tabular-nums">
-                  {from && (
-                    <tr className="border-b border-slate-200 text-slate-600">
-                      <td className="px-3 py-2" colSpan={4}>Opening balance</td>
-                      <td className="px-3 py-2 text-right">{formatINR(data.openingBalance)}</td>
+            <>
+              {/* Phone: stacked cards */}
+              <ul className="space-y-2 md:hidden">
+                {from && (
+                  <li className="flex justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    <span>Before {formatDate(from)}</span>
+                    <span className="tabular-nums">{formatINR(data.openingBalance)}</span>
+                  </li>
+                )}
+                {data.entries.map((e) => (
+                  <li key={`${e.type}-${e.id}`} className="rounded-lg border border-slate-200 px-3 py-2">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm text-slate-600">{formatDate(e.date)}</span>
+                      <span
+                        className={`text-lg font-semibold tabular-nums ${
+                          e.type === 'payment' ? 'text-green-700' : ''
+                        }`}
+                      >
+                        {e.type === 'payment' ? '−' : '+'}
+                        {formatINR(e.debit || e.credit)}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex items-baseline justify-between gap-2">
+                      <span className="min-w-0 truncate text-sm">{entryLabel(e)}</span>
+                      <span className={`shrink-0 text-sm tabular-nums ${dueTone(e.balance)}`}>
+                        Due {formatINR(e.balance)}
+                      </span>
+                    </div>
+                    {e.notes && <div className="mt-0.5 text-sm text-slate-600">{e.notes}</div>}
+                  </li>
+                ))}
+              </ul>
+
+              {/* md+: table */}
+              <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                      <th className="px-3 py-2 font-medium">Date</th>
+                      <th className="px-3 py-2 font-medium">What</th>
+                      <th className="px-3 py-2 text-right font-medium">Bought (₹)</th>
+                      <th className="px-3 py-2 text-right font-medium">Paid (₹)</th>
+                      <th className="px-3 py-2 text-right font-medium">Due (₹)</th>
                     </tr>
-                  )}
-                  {data.entries.map((e) => (
-                    <tr key={`${e.type}-${e.id}`} className="border-b border-slate-200 last:border-b-0">
-                      <td className="whitespace-nowrap px-3 py-2">{formatDate(e.date)}</td>
-                      <td className="px-3 py-2">
-                        {e.type === 'purchase'
-                          ? `${e.crop} — ${e.bagCount} bag${e.bagCount === 1 ? '' : 's'}, ${formatKg(e.totalKg)}`
-                          : `Payment (${e.mode.toUpperCase()})`}
-                        {e.notes ? <span className="text-slate-600"> · {e.notes}</span> : null}
-                      </td>
-                      <td className="px-3 py-2 text-right">{e.debit ? formatINR(e.debit) : ''}</td>
-                      <td className="px-3 py-2 text-right text-green-700">{e.credit ? formatINR(e.credit) : ''}</td>
-                      <td className={`px-3 py-2 text-right font-medium ${e.balance > 0 ? 'text-red-700' : 'text-green-700'}`}>
-                        {formatINR(e.balance)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="tabular-nums">
+                    {from && (
+                      <tr className="border-b border-slate-200 text-slate-600">
+                        <td className="px-3 py-2" colSpan={4}>Before {formatDate(from)}</td>
+                        <td className="px-3 py-2 text-right">{formatINR(data.openingBalance)}</td>
+                      </tr>
+                    )}
+                    {data.entries.map((e) => (
+                      <tr key={`${e.type}-${e.id}`} className="border-b border-slate-200 last:border-b-0">
+                        <td className="whitespace-nowrap px-3 py-2">{formatDate(e.date)}</td>
+                        <td className="px-3 py-2">
+                          {entryLabel(e)}
+                          {e.notes ? <span className="text-slate-600"> · {e.notes}</span> : null}
+                        </td>
+                        <td className="px-3 py-2 text-right">{e.debit ? formatINR(e.debit) : ''}</td>
+                        <td className="px-3 py-2 text-right text-green-700">{e.credit ? formatINR(e.credit) : ''}</td>
+                        <td className={`px-3 py-2 text-right font-medium ${dueTone(e.balance)}`}>
+                          {formatINR(e.balance)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </>
       )}

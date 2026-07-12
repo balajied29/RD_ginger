@@ -25,8 +25,8 @@ export default function FarmersPage() {
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by name…"
-        className="mb-4 min-h-[44px] w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-blue-700 focus:outline-none"
+        placeholder="Search name…"
+        className="mb-4 min-h-[48px] w-full rounded-lg border border-slate-200 px-3 py-2 text-lg focus:border-blue-700 focus:outline-none"
       />
 
       {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
@@ -34,7 +34,7 @@ export default function FarmersPage() {
 
       {!loading && !farmers.length && (
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-slate-600">
-          {search ? 'No farmers match your search.' : 'No farmers yet — add one from the New Purchase screen.'}
+          {search ? 'No farmer with this name.' : 'No farmers yet. Add one on the Buy screen.'}
         </p>
       )}
 
@@ -46,19 +46,22 @@ export default function FarmersPage() {
                 href={`/farmers/${f._id}`}
                 className="flex min-h-[56px] items-center justify-between px-4 py-2 transition-colors hover:bg-slate-50"
               >
-                <div>
-                  <div className="font-medium">{f.name}</div>
-                  <div className="text-sm text-slate-600">
+                <div className="min-w-0">
+                  <div className="truncate text-lg font-medium">{f.name}</div>
+                  <div className="truncate text-sm text-slate-600">
                     {[f.village, f.phone].filter(Boolean).join(' · ') || '—'}
                   </div>
                 </div>
-                <span
-                  className={`font-medium tabular-nums ${
-                    f.balance > 0 ? 'text-red-700' : 'text-green-700'
-                  }`}
-                >
-                  {formatINR(f.balance)}
-                </span>
+                <div className="shrink-0 text-right">
+                  <div className="text-xs text-slate-600">To pay</div>
+                  <div
+                    className={`font-semibold tabular-nums ${
+                      f.balance > 0 ? 'text-red-700' : 'text-green-700'
+                    }`}
+                  >
+                    {formatINR(f.balance)}
+                  </div>
+                </div>
               </Link>
             </li>
           ))}
