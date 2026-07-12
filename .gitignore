@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Secrets — never commit env files (only .env.example belongs in git)
+.env
+.env.local
+.env*.local
+
+# Next.js build output
+web/.next/
+web/out/
+
+# Misc
+.DS_Store
+npm-debug.log*
