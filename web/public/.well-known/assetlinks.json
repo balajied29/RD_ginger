@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.rd_ginger.ledger",
+        "sha256_cert_fingerprints": ["A2:31:13:5E:B4:BE:19:D2:1F:4F:BE:D2:04:32:F5:7E:8C:A0:3C:C5:42:A6:52:E3:CF:53:A1:28:FA:EC:0D:0F"]
+      }
+    }]
