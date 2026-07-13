@@ -12,6 +12,23 @@ function entryLabel(e) {
     : `Paid · ${e.mode.toUpperCase()}`;
 }
 
+/** Per-bag weights: "1) 50.2 kg  2) 48.9 kg …" as wrapping chips. */
+function BagChips({ bags }) {
+  if (!bags || !bags.length) return null;
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {bags.map((b) => (
+        <span
+          key={b.bagNo}
+          className="rounded-lg bg-slate-50 px-1.5 py-0.5 text-xs tabular-nums text-slate-600"
+        >
+          {b.bagNo}) {b.weightKg} kg
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /**
  * S6 — Farmer ledger. Cards on phones (no sideways scrolling),
  * classic table from md up. Words kept minimal: Bought / Paid / Due.
@@ -119,6 +136,7 @@ export default function FarmerLedgerPage() {
                       </span>
                     </div>
                     {e.notes && <div className="mt-0.5 text-sm text-slate-600">{e.notes}</div>}
+                    <BagChips bags={e.bags} />
                   </li>
                 ))}
               </ul>
@@ -148,6 +166,7 @@ export default function FarmerLedgerPage() {
                         <td className="px-3 py-2">
                           {entryLabel(e)}
                           {e.notes ? <span className="text-slate-600"> · {e.notes}</span> : null}
+                          <BagChips bags={e.bags} />
                         </td>
                         <td className="px-3 py-2 text-right">{e.debit ? formatINR(e.debit) : ''}</td>
                         <td className="px-3 py-2 text-right text-green-700">{e.credit ? formatINR(e.credit) : ''}</td>

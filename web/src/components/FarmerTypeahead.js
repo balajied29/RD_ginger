@@ -49,6 +49,12 @@ export default function FarmerTypeahead({ value, onSelect }) {
 
   async function handleCreate() {
     if (!q.trim() || busy) return;
+    // Duplicate guard: two-staff workflow means a second "Kong Bala"
+    // would silently split one farmer's history across two records.
+    const dup = farmers.find((f) => f.name.toLowerCase() === q.trim().toLowerCase());
+    if (dup && !window.confirm(`"${dup.name}" already exists. Make one more with the same name?`)) {
+      return;
+    }
     setBusy(true);
     setError('');
     try {

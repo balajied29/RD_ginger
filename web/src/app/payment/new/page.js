@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Shell, { useAuth } from '../../../components/Shell';
 import FarmerTypeahead from '../../../components/FarmerTypeahead';
 import { CheckIcon } from '../../../components/Icons';
+import { api } from '../../../lib/api';
 import { usePaymentStore } from '../../../stores/usePaymentStore';
-import { formatINR, formatDate, todayISO } from '../../../utils/format';
+import { formatINR, formatKg, formatDate, todayISO } from '../../../utils/format';
 
 const modes = [
   ['cash', 'Cash'],
@@ -122,6 +124,76 @@ function Receipt({ receipt, onDone }) {
   );
 }
 
+/**
+ * Compact farmer history for the Pay screen — the paying staff is often
+ * not the one who recorded the purchases, so dates, bags, kgs and past
+ * payments must be visible before money changes hands.
+ */
+function FarmerHistory({ farmer }) {
+  const [entries, setEntries] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    setEntries(null);
+    api(`/api/farmers/${farmer._id}/ledger`)
+      .then((r) => { if (alive) setEntries(r.data.entries.slice(-6).reverse()); })
+      .catch(() => { if (alive) setEntries([]); });
+    return () => { alive = false; };
+  }, [farmer]);
+
+  return (
+    <div>
+      <div className="mb-1 flex items-baseline justify-between">
+        <span className="text-sm font-medium text-slate-600">History</span>
+        <Link href={`/farmers/${farmer._id}`} className="text-sm text-blue-700 transition-colors hover:text-blue-800">
+          See all
+        </Link>
+      </div>
+      {!entries ? (
+        <p className="rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-600">Loading…</p>
+      ) : !entries.length ? (
+        <p className="rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-600">Nothing yet.</p>
+      ) : (
+        <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 text-sm">
+          {entries.map((e) => (
+            <li key={`${e.type}-${e.id}`} className="px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">
+                    {e.type === 'purchase'
+                      ? `${e.bagCount} bag${e.bagCount === 1 ? '' : 's'} · ${formatKg(e.totalKg)}`
+                      : `Paid · ${e.mode.toUpperCase()}`}
+                  </div>
+                  <div className="truncate text-xs text-slate-600">
+                    {formatDate(e.date)}
+                    {e.type === 'purchase' && e.crop ? ` · ${e.crop}` : ''}
+                  </div>
+                </div>
+                <span className={`shrink-0 font-semibold tabular-nums ${e.type === 'payment' ? 'text-green-700' : ''}`}>
+                  {e.type === 'payment' ? '−' : '+'}
+                  {formatINR(e.debit || e.credit)}
+                </span>
+              </div>
+              {e.type === 'purchase' && e.bags && e.bags.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {e.bags.map((b) => (
+                    <span
+                      key={b.bagNo}
+                      className="rounded-lg bg-slate-50 px-1.5 py-0.5 text-xs tabular-nums text-slate-600"
+                    >
+                      {b.bagNo}) {b.weightKg} kg
+                    </span>
+                  ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** S4 — Pay. Saves the payment, then shows a shareable receipt. */
 export default function NewPaymentPage() {
   const { saving, createPayment } = usePaymentStore();
@@ -196,16 +268,19 @@ export default function NewPaymentPage() {
         <FarmerTypeahead value={farmer} onSelect={setFarmer} />
 
         {farmer && (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="text-sm text-slate-600">To pay</div>
-            <div
-              className={`text-3xl font-semibold tabular-nums ${
-                farmer.balance > 0 ? 'text-red-700' : 'text-green-700'
-              }`}
-            >
-              {formatINR(farmer.balance)}
+          <>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="text-sm text-slate-600">To pay</div>
+              <div
+                className={`text-3xl font-semibold tabular-nums ${
+                  farmer.balance > 0 ? 'text-red-700' : 'text-green-700'
+                }`}
+              >
+                {formatINR(farmer.balance)}
+              </div>
             </div>
-          </div>
+            <FarmerHistory farmer={farmer} />
+          </>
         )}
 
         <label className="block">
