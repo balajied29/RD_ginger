@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { api } from '../lib/api';
 import { useFarmerStore } from '../stores/useFarmerStore';
 import { formatINR } from '../utils/format';
 
@@ -49,16 +50,20 @@ export default function FarmerTypeahead({ value, onSelect }) {
 
   async function handleCreate() {
     if (!q.trim() || busy) return;
-    // Duplicate guard: two-staff workflow means a second "Kong Bala"
-    // would silently split one farmer's history across two records.
-    const dup = farmers.find((f) => f.name.toLowerCase() === q.trim().toLowerCase());
-    if (dup && !window.confirm(`"${dup.name}" already exists. Make one more with the same name?`)) {
-      return;
-    }
     setBusy(true);
     setError('');
     try {
-      onSelect(await createFarmer({ name: q.trim() }));
+      // Duplicate guard: a second "Kong Bala" silently splits one
+      // farmer's history. Check against a FRESH server search — the
+      // local list may not have loaded yet (250ms debounce race).
+      const name = q.trim();
+      const fresh = await api('/api/farmers', { query: { search: name } });
+      const dup = fresh.data.find((f) => f.name.toLowerCase() === name.toLowerCase());
+      if (dup && !window.confirm(`"${dup.name}" already exists. Make one more with the same name?`)) {
+        setBusy(false);
+        return;
+      }
+      onSelect(await createFarmer({ name }));
       setOpen(false);
       setQ('');
     } catch (e) {

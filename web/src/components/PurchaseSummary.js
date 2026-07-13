@@ -14,6 +14,7 @@ export default function PurchaseSummary({ summary, onDone }) {
   const { user } = useAuth();
   const [note, setNote] = useState('');
 
+  const priced = summary.totalAmount != null;
   const bagLines = summary.bags.map((b) => `${b.bagNo}) ${b.weightKg} kg`).join(', ');
   const shareText = [
     'LEDGER — Purchase',
@@ -22,7 +23,7 @@ export default function PurchaseSummary({ summary, onDone }) {
     `Crop: ${summary.crop}`,
     `Bags: ${summary.bags.length} — ${bagLines}`,
     `Total: ${formatKg(summary.totalKg)}`,
-    `Money: ${formatINR(summary.totalAmount)}`,
+    priced ? `Money: ${formatINR(summary.totalAmount)}` : 'Money: not added yet',
     `To pay now: ${formatINR(summary.balanceAfter)}`,
     `By: ${user ? user.name : ''}`,
   ].join('\n');
@@ -86,7 +87,11 @@ export default function PurchaseSummary({ summary, onDone }) {
 
         <div className="border-b border-slate-200 py-3 text-center">
           <div className="text-sm text-slate-600">Money</div>
-          <div className="text-3xl font-semibold tabular-nums">{formatINR(summary.totalAmount)}</div>
+          {priced ? (
+            <div className="text-3xl font-semibold tabular-nums">{formatINR(summary.totalAmount)}</div>
+          ) : (
+            <div className="text-xl font-semibold text-yellow-700">Not added yet</div>
+          )}
         </div>
 
         <div className="py-3 text-center">

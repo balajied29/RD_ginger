@@ -44,7 +44,10 @@ const purchaseSchema = new mongoose.Schema(
       },
     },
     totalKg: { type: Number, required: true },
-    totalAmount: { type: Number, required: true, min: 1 },
+    // Optional at creation (owner decision 2026-07-13): recording staff
+    // may enter bags only; another staff adds the price later. Unpriced
+    // purchases contribute 0 to balances until the amount is added.
+    totalAmount: { type: Number, min: 1, default: undefined },
     notes: { type: String, default: '' },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

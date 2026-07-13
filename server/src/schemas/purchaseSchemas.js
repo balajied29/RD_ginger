@@ -19,7 +19,7 @@ const createPurchase = z
     date: z.coerce.date(),
     crop: z.string().trim().min(1, 'Crop is required'),
     bags: z.array(bag).min(1, 'At least 1 bag is required'),
-    totalAmount: z.number().min(1, 'Enter the money amount'),
+    totalAmount: z.number().min(1, 'Money must be at least ₹1').optional(),
     notes: z.string().trim().default(''),
   })
   .strict();

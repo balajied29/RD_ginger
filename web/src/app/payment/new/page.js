@@ -1,200 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import Shell, { useAuth } from '../../../components/Shell';
+import { useMemo, useState } from 'react';
+import Shell from '../../../components/Shell';
 import FarmerTypeahead from '../../../components/FarmerTypeahead';
-import { CheckIcon } from '../../../components/Icons';
+import FarmerHistory from '../../../components/FarmerHistory';
+import PaymentReceipt from '../../../components/PaymentReceipt';
 import { api } from '../../../lib/api';
+import { useDraft } from '../../../lib/useDraft';
 import { usePaymentStore } from '../../../stores/usePaymentStore';
-import { formatINR, formatKg, formatDate, todayISO } from '../../../utils/format';
+import { formatINR, todayISO } from '../../../utils/format';
 
-const modes = [
-  ['cash', 'Cash'],
-  ['upi', 'UPI'],
-  ['bank', 'Bank'],
-];
-
-function Receipt({ receipt, onDone }) {
-  const { user } = useAuth();
-  const [note, setNote] = useState('');
-  const due = receipt.balanceAfter;
-
-  const shareText = [
-    'LEDGER — Payment Receipt',
-    `No: ${receipt.no} · ${formatDate(receipt.date)}`,
-    `Farmer: ${receipt.farmerName}${receipt.village ? ` (${receipt.village})` : ''}`,
-    `Paid: ${formatINR(receipt.amount)} (${receipt.mode.toUpperCase()})`,
-    due > 0 ? `Balance: ${formatINR(due)}` : due < 0 ? `Advance: ${formatINR(-due)}` : 'Fully paid',
-    `By: ${user ? user.name : ''}`,
-  ].join('\n');
-
-  async function share() {
-    try {
-      if (navigator.share) {
-        await navigator.share({ text: shareText });
-      } else {
-        await navigator.clipboard.writeText(shareText);
-        setNote('Copied — paste it anywhere');
-      }
-    } catch { /* user cancelled the share sheet */ }
-  }
-
-  const row = 'flex items-baseline justify-between gap-3 py-1.5';
-
-  return (
-    <div className="mx-auto max-w-sm">
-      <div className="rounded-lg border border-slate-200 p-4">
-        <div className="border-b border-slate-200 pb-3 text-center">
-          <div className="text-xl font-semibold">LEDGER</div>
-          <div className="text-sm text-slate-600">Payment Receipt</div>
-        </div>
-
-        <div className="border-b border-slate-200 py-3 text-sm">
-          <div className={row}>
-            <span className="text-slate-600">Receipt no</span>
-            <span className="font-mono">{receipt.no}</span>
-          </div>
-          <div className={row}>
-            <span className="text-slate-600">Date</span>
-            <span>{formatDate(receipt.date)}</span>
-          </div>
-          <div className={row}>
-            <span className="text-slate-600">Farmer</span>
-            <span className="text-right font-medium">
-              {receipt.farmerName}
-              {receipt.village ? <span className="font-normal text-slate-600"> · {receipt.village}</span> : null}
-            </span>
-          </div>
-        </div>
-
-        <div className="border-b border-slate-200 py-3 text-center">
-          <div className="text-sm text-slate-600">Paid ({receipt.mode.toUpperCase()})</div>
-          <div className="text-4xl font-semibold tabular-nums text-green-700">
-            {formatINR(receipt.amount)}
-          </div>
-        </div>
-
-        <div className="py-3 text-center">
-          {due > 0 ? (
-            <>
-              <div className="text-sm text-slate-600">Balance still to pay</div>
-              <div className="text-2xl font-semibold tabular-nums text-red-700">{formatINR(due)}</div>
-            </>
-          ) : due < 0 ? (
-            <>
-              <div className="text-sm text-slate-600">Paid extra (advance)</div>
-              <div className="text-2xl font-semibold tabular-nums text-green-700">{formatINR(-due)}</div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center gap-2 text-xl font-semibold text-green-700">
-              <CheckIcon className="h-6 w-6" /> Fully paid
-            </div>
-          )}
-        </div>
-
-        <div className="border-t border-slate-200 pt-2 text-center text-xs text-slate-600">
-          Received by {user ? user.name : ''}
-        </div>
-      </div>
-
-      {note && <p className="mt-2 text-center text-sm text-green-700">{note}</p>}
-
-      <div className="mt-4 grid grid-cols-2 gap-2 print:hidden">
-        <button
-          onClick={share}
-          className="min-h-[52px] rounded-lg bg-blue-700 text-lg font-medium text-white transition-colors hover:bg-blue-800"
-        >
-          Share
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="min-h-[52px] rounded-lg border border-slate-200 text-lg text-slate-600 transition-colors hover:text-slate-900"
-        >
-          Print
-        </button>
-        <button
-          onClick={onDone}
-          className="col-span-2 min-h-[52px] rounded-lg border border-slate-200 text-lg text-slate-600 transition-colors hover:text-slate-900"
-        >
-          Done
-        </button>
-      </div>
-    </div>
-  );
-}
+const modes = [['cash', 'Cash'], ['upi', 'UPI'], ['bank', 'Bank']];
 
 /**
- * Compact farmer history for the Pay screen — the paying staff is often
- * not the one who recorded the purchases, so dates, bags, kgs and past
- * payments must be visible before money changes hands.
+ * S4 — Pay. Shows the farmer's history (bags, kgs, payments) before
+ * money is entered, then a shareable receipt. Smart form: autosaves
+ * to this phone and restores if the staff gets distracted.
  */
-function FarmerHistory({ farmer }) {
-  const [entries, setEntries] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-    setEntries(null);
-    api(`/api/farmers/${farmer._id}/ledger`)
-      .then((r) => { if (alive) setEntries(r.data.entries.slice(-6).reverse()); })
-      .catch(() => { if (alive) setEntries([]); });
-    return () => { alive = false; };
-  }, [farmer]);
-
-  return (
-    <div>
-      <div className="mb-1 flex items-baseline justify-between">
-        <span className="text-sm font-medium text-slate-600">History</span>
-        <Link href={`/farmers/${farmer._id}`} className="text-sm text-blue-700 transition-colors hover:text-blue-800">
-          See all
-        </Link>
-      </div>
-      {!entries ? (
-        <p className="rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-600">Loading…</p>
-      ) : !entries.length ? (
-        <p className="rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-600">Nothing yet.</p>
-      ) : (
-        <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 text-sm">
-          {entries.map((e) => (
-            <li key={`${e.type}-${e.id}`} className="px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate font-medium">
-                    {e.type === 'purchase'
-                      ? `${e.bagCount} bag${e.bagCount === 1 ? '' : 's'} · ${formatKg(e.totalKg)}`
-                      : `Paid · ${e.mode.toUpperCase()}`}
-                  </div>
-                  <div className="truncate text-xs text-slate-600">
-                    {formatDate(e.date)}
-                    {e.type === 'purchase' && e.crop ? ` · ${e.crop}` : ''}
-                  </div>
-                </div>
-                <span className={`shrink-0 font-semibold tabular-nums ${e.type === 'payment' ? 'text-green-700' : ''}`}>
-                  {e.type === 'payment' ? '−' : '+'}
-                  {formatINR(e.debit || e.credit)}
-                </span>
-              </div>
-              {e.type === 'purchase' && e.bags && e.bags.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {e.bags.map((b) => (
-                    <span
-                      key={b.bagNo}
-                      className="rounded-lg bg-slate-50 px-1.5 py-0.5 text-xs tabular-nums text-slate-600"
-                    >
-                      {b.bagNo}) {b.weightKg} kg
-                    </span>
-                  ))}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/** S4 — Pay. Saves the payment, then shows a shareable receipt. */
 export default function NewPaymentPage() {
   const { saving, createPayment } = usePaymentStore();
   const [farmer, setFarmer] = useState(null);
@@ -204,6 +26,42 @@ export default function NewPaymentPage() {
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState(null); // { kind: 'err', text }
   const [receipt, setReceipt] = useState(null);
+
+  const draftState = useMemo(
+    () => ({ farmer, date, amount, mode, notes }),
+    [farmer, date, amount, mode, notes]
+  );
+  const { clearDraft } = useDraft('ledger_draft_pay', draftState, (d) => {
+    if (d.date) setDate(d.date);
+    if (d.amount) setAmount(d.amount);
+    if (d.mode) setMode(d.mode);
+    if (d.notes) setNotes(d.notes);
+    if (d.farmer) {
+      setFarmer(d.farmer); // instant restore…
+      api(`/api/farmers/${d.farmer._id}`) // …then refresh the balance
+        .then((r) => setFarmer(r.data))
+        .catch(() => setFarmer(null));
+    }
+  });
+
+  const dirty = farmer || amount || notes;
+
+  function resetAll() {
+    setFarmer(null);
+    setDate(todayISO());
+    setAmount('');
+    setMode('cash');
+    setNotes('');
+    setMsg(null);
+    clearDraft();
+  }
+
+  async function refreshFarmer() {
+    try {
+      const r = await api(`/api/farmers/${farmer._id}`);
+      setFarmer(r.data);
+    } catch { /* keep showing current data */ }
+  }
 
   async function submit() {
     setMsg(null);
@@ -235,9 +93,7 @@ export default function NewPaymentPage() {
         village: farmer.village || '',
         balanceAfter: r.data.balanceAfter,
       });
-      setFarmer(null);
-      setAmount('');
-      setNotes('');
+      resetAll();
     } catch (e) {
       setMsg({ kind: 'err', text: e.message });
     }
@@ -249,14 +105,26 @@ export default function NewPaymentPage() {
   if (receipt) {
     return (
       <Shell>
-        <Receipt receipt={receipt} onDone={() => setReceipt(null)} />
+        <PaymentReceipt receipt={receipt} onDone={() => setReceipt(null)} />
       </Shell>
     );
   }
 
   return (
     <Shell>
-      <h1 className="mb-4 text-xl font-semibold">Pay</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Pay</h1>
+        {dirty && (
+          <button
+            type="button"
+            onClick={resetAll}
+            className="min-h-[44px] px-2 text-sm text-slate-600 transition-colors hover:text-slate-900"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="mb-4 text-xs text-slate-600">Saves by itself — safe to close anytime.</p>
 
       {msg && (
         <p className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-red-700">
@@ -279,7 +147,7 @@ export default function NewPaymentPage() {
                 {formatINR(farmer.balance)}
               </div>
             </div>
-            <FarmerHistory farmer={farmer} />
+            <FarmerHistory farmer={farmer} onChanged={refreshFarmer} />
           </>
         )}
 
@@ -299,11 +167,7 @@ export default function NewPaymentPage() {
             {modes.map(([key, label]) => (
               <button
                 key={key} type="button" onClick={() => setMode(key)}
-                className={`min-h-[48px] rounded-lg border text-lg transition-colors ${
-                  mode === key
-                    ? 'border-blue-700 bg-blue-700 font-medium text-white'
-                    : 'border-slate-200 text-slate-600 hover:text-slate-900'
-                }`}
+                className={`min-h-[48px] rounded-lg border text-lg transition-colors ${mode === key ? 'border-blue-700 bg-blue-700 font-medium text-white' : 'border-slate-200 text-slate-600 hover:text-slate-900'}`}
               >
                 {label}
               </button>

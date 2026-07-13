@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Shell from '../../../components/Shell';
+import AddMoney from '../../../components/AddMoney';
 import { api } from '../../../lib/api';
 import { formatINR, formatKg, formatDate } from '../../../utils/format';
 
@@ -120,14 +121,18 @@ export default function FarmerLedgerPage() {
                   <li key={`${e.type}-${e.id}`} className="rounded-lg border border-slate-200 px-3 py-2">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-sm text-slate-600">{formatDate(e.date)}</span>
-                      <span
-                        className={`text-lg font-semibold tabular-nums ${
-                          e.type === 'payment' ? 'text-green-700' : ''
-                        }`}
-                      >
-                        {e.type === 'payment' ? '−' : '+'}
-                        {formatINR(e.debit || e.credit)}
-                      </span>
+                      {e.unpriced ? (
+                        <AddMoney purchaseId={e.id} onAdded={() => load(from, to)} />
+                      ) : (
+                        <span
+                          className={`text-lg font-semibold tabular-nums ${
+                            e.type === 'payment' ? 'text-green-700' : ''
+                          }`}
+                        >
+                          {e.type === 'payment' ? '−' : '+'}
+                          {formatINR(e.debit || e.credit)}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5 flex items-baseline justify-between gap-2">
                       <span className="min-w-0 truncate text-sm">{entryLabel(e)}</span>
@@ -168,7 +173,15 @@ export default function FarmerLedgerPage() {
                           {e.notes ? <span className="text-slate-600"> · {e.notes}</span> : null}
                           <BagChips bags={e.bags} />
                         </td>
-                        <td className="px-3 py-2 text-right">{e.debit ? formatINR(e.debit) : ''}</td>
+                        <td className="px-3 py-2 text-right">
+                          {e.unpriced ? (
+                            <AddMoney purchaseId={e.id} onAdded={() => load(from, to)} />
+                          ) : e.debit ? (
+                            formatINR(e.debit)
+                          ) : (
+                            ''
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-right text-green-700">{e.credit ? formatINR(e.credit) : ''}</td>
                         <td className={`px-3 py-2 text-right font-medium ${dueTone(e.balance)}`}>
                           {formatINR(e.balance)}

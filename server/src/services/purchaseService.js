@@ -29,7 +29,7 @@ async function createPurchase(data, actor) {
   });
   return {
     purchase,
-    balanceAfter: Math.round((balanceBefore + purchase.totalAmount) * 100) / 100,
+    balanceAfter: Math.round((balanceBefore + (purchase.totalAmount || 0)) * 100) / 100,
   };
 }
 
@@ -59,10 +59,23 @@ async function listPurchases({ farmerId, from, to, page = 1 }) {
   return { items, page, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
 
-/** Loads + save()s (never findOneAndUpdate) so totals recompute. Audited. */
+/**
+ * Loads + save()s (never findOneAndUpdate) so totals recompute. Audited.
+ * Staff may ONLY add totalAmount to a purchase that has none yet
+ * (two-staff workflow); every other edit remains admin-only.
+ */
 async function updatePurchase(id, patch, actor) {
   const purchase = await Purchase.findById(id);
   if (!purchase) throw httpError(404, 'Purchase not found');
+
+  if (actor.role !== 'admin') {
+    const keys = Object.keys(patch);
+    const onlyAddingPrice =
+      keys.length === 1 && keys[0] === 'totalAmount' && purchase.totalAmount == null;
+    if (!onlyAddingPrice) {
+      throw httpError(403, 'Staff can only add money to a purchase that has none yet');
+    }
+  }
   if (patch.farmerId) await assertFarmerExists(patch.farmerId);
 
   const before = purchase.toObject();

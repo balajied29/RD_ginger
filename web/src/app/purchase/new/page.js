@@ -3,17 +3,18 @@
 import { useMemo, useRef, useState } from 'react';
 import Shell from '../../../components/Shell';
 import FarmerTypeahead from '../../../components/FarmerTypeahead';
+import BagEntry from '../../../components/BagEntry';
 import PurchaseSummary from '../../../components/PurchaseSummary';
+import { useDraft } from '../../../lib/useDraft';
 import { usePurchaseStore } from '../../../stores/usePurchaseStore';
-import { formatKg, todayISO } from '../../../utils/format';
+import { todayISO } from '../../../utils/format';
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
 /**
- * S3 — Buy. Phone-first, minimal English: type each bag's weight,
- * press Add — bags are auto-numbered and listed so the sequence
- * (which bag had how many kg) can be checked. Money is the final
- * negotiated total, typed directly (no rate — owner decision).
+ * S3 — Buy. Money is optional (another staff can add it later).
+ * Smart form: every change autosaves to this phone and is restored
+ * if the staff gets distracted and comes back.
  */
 export default function NewPurchasePage() {
   const { saving, createPurchase } = usePurchaseStore();
@@ -28,7 +29,34 @@ export default function NewPurchasePage() {
   const [saved, setSaved] = useState(null); // summary shown after save
   const weightRef = useRef(null);
 
+  const draftState = useMemo(
+    () => ({ farmer, date, crop, amount, bags, weight, notes }),
+    [farmer, date, crop, amount, bags, weight, notes]
+  );
+  const { clearDraft } = useDraft('ledger_draft_buy', draftState, (d) => {
+    if (d.farmer) setFarmer(d.farmer);
+    if (d.date) setDate(d.date);
+    if (d.crop) setCrop(d.crop);
+    if (d.amount) setAmount(d.amount);
+    if (Array.isArray(d.bags) && d.bags.length) setBags(d.bags);
+    if (d.weight) setWeight(d.weight);
+    if (d.notes) setNotes(d.notes);
+  });
+
   const totalKg = useMemo(() => round2(bags.reduce((s, b) => s + b.weightKg, 0)), [bags]);
+  const dirty = farmer || bags.length > 0 || crop || amount || notes;
+
+  function resetAll() {
+    setFarmer(null);
+    setDate(todayISO());
+    setCrop('');
+    setAmount('');
+    setBags([]);
+    setWeight('');
+    setNotes('');
+    setMsg(null);
+    clearDraft();
+  }
 
   function addBag(e) {
     e.preventDefault();
@@ -50,8 +78,10 @@ export default function NewPurchasePage() {
     if (!farmer) return setMsg({ kind: 'err', text: 'Choose a farmer.' });
     if (!crop.trim()) return setMsg({ kind: 'err', text: 'Write the crop name.' });
     if (!bags.length) return setMsg({ kind: 'err', text: 'Add at least 1 bag.' });
-    const amt = parseFloat(amount);
-    if (!(amt >= 1)) return setMsg({ kind: 'err', text: 'Write the money amount.' });
+    const amt = amount.trim() === '' ? undefined : parseFloat(amount);
+    if (amt !== undefined && !(amt >= 1)) {
+      return setMsg({ kind: 'err', text: 'Money must be at least ₹1 (or leave it empty).' });
+    }
 
     try {
       const r = await createPurchase({
@@ -59,7 +89,7 @@ export default function NewPurchasePage() {
         date,
         crop: crop.trim(),
         bags,
-        totalAmount: amt,
+        ...(amt !== undefined ? { totalAmount: amt } : {}),
         notes: notes.trim(),
       });
       setSaved({
@@ -72,10 +102,7 @@ export default function NewPurchasePage() {
         totalAmount: r.totalAmount,
         balanceAfter: r.balanceAfter,
       });
-      setFarmer(null);
-      setBags([]);
-      setAmount('');
-      setNotes('');
+      resetAll();
     } catch (e) {
       setMsg({ kind: 'err', text: e.message });
     }
@@ -94,7 +121,19 @@ export default function NewPurchasePage() {
 
   return (
     <Shell>
-      <h1 className="mb-4 text-xl font-semibold">Buy</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Buy</h1>
+        {dirty && (
+          <button
+            type="button"
+            onClick={resetAll}
+            className="min-h-[44px] px-2 text-sm text-slate-600 transition-colors hover:text-slate-900"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="mb-4 text-xs text-slate-600">Saves by itself — safe to close anytime.</p>
 
       {msg && (
         <p className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-red-700">
@@ -116,58 +155,20 @@ export default function NewPurchasePage() {
           </label>
         </div>
 
-        {/* Bag entry — the core one-handed flow next to the scale. */}
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <div className="mb-2 flex items-baseline justify-between">
-            <span className="text-lg font-semibold">
-              Bag {bags.length + 1}
-            </span>
-            <span className="text-sm text-slate-600">weight in kg</span>
-          </div>
-          <form onSubmit={addBag} className="flex gap-2">
-            <input
-              ref={weightRef}
-              type="number" inputMode="decimal" min="0.1" step="0.1"
-              value={weight} onChange={(e) => setWeight(e.target.value)}
-              placeholder="0.0"
-              className="min-h-[64px] w-full rounded-lg border border-slate-200 px-4 text-3xl font-semibold tabular-nums focus:border-blue-700 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="min-h-[64px] shrink-0 rounded-lg bg-blue-700 px-6 text-xl font-medium text-white transition-colors hover:bg-blue-800"
-            >
-              + Add
-            </button>
-          </form>
-
-          {bags.length > 0 && (
-            <ul className="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-              {bags.map((b, i) => (
-                <li key={b.bagNo} className="flex min-h-[52px] items-center gap-3 px-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-sm font-semibold text-slate-600">
-                    {b.bagNo}
-                  </span>
-                  <span className="grow text-xl font-medium tabular-nums">{formatKg(b.weightKg)}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeBag(i)}
-                    aria-label={`Remove bag ${b.bagNo}`}
-                    className="flex min-h-[44px] min-w-[44px] items-center justify-center text-red-700 transition-colors hover:text-red-800"
-                  >
-                    ✕
-                  </button>
-                </li>
-              ))}
-              <li className="flex min-h-[52px] items-center justify-between bg-slate-50 px-3 font-semibold">
-                <span>{bags.length} bags</span>
-                <span className="text-xl tabular-nums">{formatKg(totalKg)}</span>
-              </li>
-            </ul>
-          )}
-        </div>
+        <BagEntry
+          bags={bags}
+          weight={weight}
+          setWeight={setWeight}
+          onAdd={addBag}
+          onRemove={removeBag}
+          totalKg={totalKg}
+          weightRef={weightRef}
+        />
 
         <label className="block">
-          <span className="mb-1 block text-sm text-slate-600">Total money (₹)</span>
+          <span className="mb-1 block text-sm text-slate-600">
+            Total money (₹) — optional, other staff can add it later
+          </span>
           <input
             type="number" inputMode="decimal" min="1" step="1"
             value={amount} onChange={(e) => setAmount(e.target.value)}

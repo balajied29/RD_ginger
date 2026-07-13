@@ -49,7 +49,8 @@ async function getLedger(farmerId, from, to) {
       bagCount: p.bags.length,
       bags: p.bags, // per-bag weights, shown to the paying staff
       totalKg: p.totalKg,
-      debit: p.totalAmount,
+      debit: p.totalAmount || 0,
+      unpriced: p.totalAmount == null, // bags recorded, money not yet added
       credit: 0,
       notes: p.notes,
       createdAt: p.createdAt,
