@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import Shell from '../components/Shell';
 import { useDashboardStore } from '../stores/useDashboardStore';
 import { formatINR, formatKg, formatDate } from '../utils/format';
@@ -75,21 +76,31 @@ export default function DashboardPage() {
           ) : (
             <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200">
               {data.recentTransactions.map((t) => (
-                <li key={`${t.type}-${t.id}`} className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">{t.farmerName}</div>
-                    <div className="truncate text-sm text-slate-600">
-                      {t.type === 'purchase'
-                        ? `Bought · ${t.crop} · ${formatKg(t.totalKg)}`
-                        : `Paid · ${t.mode.toUpperCase()}`}
-                      {' · '}
-                      {formatDate(t.date)}
+                <li key={`${t.type}-${t.id}`}>
+                  {/* Tap the farmer to open their ledger — bags, kgs, history. */}
+                  <Link
+                    href={t.farmerId ? `/farmers/${t.farmerId}` : '/farmers'}
+                    className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2 transition-colors hover:bg-slate-50"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{t.farmerName}</div>
+                      <div className="truncate text-sm text-slate-600">
+                        {t.type === 'purchase'
+                          ? `Bought · ${t.crop} · ${formatKg(t.totalKg)}`
+                          : `Paid · ${t.mode.toUpperCase()}`}
+                        {' · '}
+                        {formatDate(t.date)}
+                      </div>
                     </div>
-                  </div>
-                  <span className={`shrink-0 font-semibold tabular-nums ${t.type === 'payment' ? 'text-green-700' : ''}`}>
-                    {t.type === 'payment' ? '−' : ''}
-                    {formatINR(t.amount)}
-                  </span>
+                    {t.unpriced ? (
+                      <span className="shrink-0 text-sm font-medium text-yellow-700">₹ not added</span>
+                    ) : (
+                      <span className={`shrink-0 font-semibold tabular-nums ${t.type === 'payment' ? 'text-green-700' : ''}`}>
+                        {t.type === 'payment' ? '−' : ''}
+                        {formatINR(t.amount)}
+                      </span>
+                    )}
+                  </Link>
                 </li>
               ))}
             </ul>
