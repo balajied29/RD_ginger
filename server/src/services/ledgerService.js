@@ -34,8 +34,8 @@ async function getLedger(farmerId, from, to) {
   };
 
   const [purchases, payments, openingPurchased, openingPaid] = await Promise.all([
-    Purchase.find(rangeMatch).sort({ date: 1, createdAt: 1 }).lean(),
-    Payment.find(rangeMatch).sort({ date: 1, createdAt: 1 }).lean(),
+    Purchase.find(rangeMatch).sort({ date: 1, createdAt: 1 }).populate('createdBy', 'name').lean(),
+    Payment.find(rangeMatch).sort({ date: 1, createdAt: 1 }).populate('createdBy', 'name').lean(),
     sumBefore(Purchase, 'totalAmount', farmer._id, from),
     sumBefore(Payment, 'amount', farmer._id, from),
   ]);
@@ -53,6 +53,7 @@ async function getLedger(farmerId, from, to) {
       unpriced: p.totalAmount == null, // bags recorded, money not yet added
       credit: 0,
       notes: p.notes,
+      by: p.createdBy ? p.createdBy.name : '',
       createdAt: p.createdAt,
     })),
     ...payments.map((p) => ({
@@ -63,6 +64,7 @@ async function getLedger(farmerId, from, to) {
       debit: 0,
       credit: p.amount,
       notes: p.notes,
+      by: p.createdBy ? p.createdBy.name : '',
       createdAt: p.createdAt,
     })),
   ].sort((a, b) => a.date - b.date || a.createdAt - b.createdAt);

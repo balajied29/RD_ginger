@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Shell from '../../../components/Shell';
 import AddMoney from '../../../components/AddMoney';
+import EntryDetail, { BagChips } from '../../../components/EntryDetail';
 import { api } from '../../../lib/api';
 import { formatINR, formatKg, formatDate } from '../../../utils/format';
 
@@ -13,26 +14,9 @@ function entryLabel(e) {
     : `Paid · ${e.mode.toUpperCase()}`;
 }
 
-/** Per-bag weights: "1) 50.2 kg  2) 48.9 kg …" as wrapping chips. */
-function BagChips({ bags }) {
-  if (!bags || !bags.length) return null;
-  return (
-    <div className="mt-1 flex flex-wrap gap-1">
-      {bags.map((b) => (
-        <span
-          key={b.bagNo}
-          className="rounded-lg bg-slate-50 px-1.5 py-0.5 text-xs tabular-nums text-slate-600"
-        >
-          {b.bagNo}) {b.weightKg} kg
-        </span>
-      ))}
-    </div>
-  );
-}
-
 /**
- * S6 — Farmer ledger. Cards on phones (no sideways scrolling),
- * classic table from md up. Words kept minimal: Bought / Paid / Due.
+ * S6 — Farmer ledger. Cards on phones, table from md up. Tap any
+ * entry to view its full details. Unpriced purchases show + Add ₹.
  */
 export default function FarmerLedgerPage() {
   const { id } = useParams();
@@ -41,6 +25,7 @@ export default function FarmerLedgerPage() {
   const [to, setTo] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState(null); // tapped entry
 
   const load = useCallback(async (fromVal, toVal) => {
     setLoading(true);
@@ -48,6 +33,7 @@ export default function FarmerLedgerPage() {
     try {
       const r = await api(`/api/farmers/${id}/ledger`, { query: { from: fromVal, to: toVal } });
       setData(r.data);
+      setDetail(null);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -60,13 +46,14 @@ export default function FarmerLedgerPage() {
   const inputCls =
     'min-h-[48px] w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-blue-700 focus:outline-none';
   const dueTone = (n) => (n > 0 ? 'text-red-700' : 'text-green-700');
+  const stop = (e) => e.stopPropagation();
 
   return (
     <Shell>
       {error && <p className="mb-4 text-red-700">{error}</p>}
-      {loading && <p className="text-slate-600">Loading…</p>}
+      {loading && !data && <p className="text-slate-600">Loading…</p>}
 
-      {!loading && data && (
+      {data && (
         <>
           <div className="mb-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -109,7 +96,7 @@ export default function FarmerLedgerPage() {
             </p>
           ) : (
             <>
-              {/* Phone: stacked cards */}
+              {/* Phone: stacked cards — tap to view details */}
               <ul className="space-y-2 md:hidden">
                 {from && (
                   <li className="flex justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
@@ -118,17 +105,19 @@ export default function FarmerLedgerPage() {
                   </li>
                 )}
                 {data.entries.map((e) => (
-                  <li key={`${e.type}-${e.id}`} className="rounded-lg border border-slate-200 px-3 py-2">
+                  <li
+                    key={`${e.type}-${e.id}`}
+                    onClick={() => setDetail(e)}
+                    className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:bg-slate-50"
+                  >
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-sm text-slate-600">{formatDate(e.date)}</span>
                       {e.unpriced ? (
-                        <AddMoney purchaseId={e.id} onAdded={() => load(from, to)} />
+                        <span onClick={stop}>
+                          <AddMoney purchaseId={e.id} onAdded={() => load(from, to)} />
+                        </span>
                       ) : (
-                        <span
-                          className={`text-lg font-semibold tabular-nums ${
-                            e.type === 'payment' ? 'text-green-700' : ''
-                          }`}
-                        >
+                        <span className={`text-lg font-semibold tabular-nums ${e.type === 'payment' ? 'text-green-700' : ''}`}>
                           {e.type === 'payment' ? '−' : '+'}
                           {formatINR(e.debit || e.credit)}
                         </span>
@@ -146,7 +135,7 @@ export default function FarmerLedgerPage() {
                 ))}
               </ul>
 
-              {/* md+: table */}
+              {/* md+: table — click a row to view details */}
               <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
                 <table className="w-full text-sm">
                   <thead>
@@ -166,7 +155,11 @@ export default function FarmerLedgerPage() {
                       </tr>
                     )}
                     {data.entries.map((e) => (
-                      <tr key={`${e.type}-${e.id}`} className="border-b border-slate-200 last:border-b-0">
+                      <tr
+                        key={`${e.type}-${e.id}`}
+                        onClick={() => setDetail(e)}
+                        className="cursor-pointer border-b border-slate-200 transition-colors last:border-b-0 hover:bg-slate-50"
+                      >
                         <td className="whitespace-nowrap px-3 py-2">{formatDate(e.date)}</td>
                         <td className="px-3 py-2">
                           {entryLabel(e)}
@@ -175,12 +168,10 @@ export default function FarmerLedgerPage() {
                         </td>
                         <td className="px-3 py-2 text-right">
                           {e.unpriced ? (
-                            <AddMoney purchaseId={e.id} onAdded={() => load(from, to)} />
-                          ) : e.debit ? (
-                            formatINR(e.debit)
-                          ) : (
-                            ''
-                          )}
+                            <span onClick={stop} className="inline-block">
+                              <AddMoney purchaseId={e.id} onAdded={() => load(from, to)} />
+                            </span>
+                          ) : e.debit ? formatINR(e.debit) : ''}
                         </td>
                         <td className="px-3 py-2 text-right text-green-700">{e.credit ? formatINR(e.credit) : ''}</td>
                         <td className={`px-3 py-2 text-right font-medium ${dueTone(e.balance)}`}>
@@ -192,6 +183,15 @@ export default function FarmerLedgerPage() {
                 </table>
               </div>
             </>
+          )}
+
+          {detail && (
+            <EntryDetail
+              entry={detail}
+              farmerName={data.farmer.name}
+              onClose={() => setDetail(null)}
+              onChanged={() => load(from, to)}
+            />
           )}
         </>
       )}
