@@ -21,5 +21,8 @@ export function formatDate(d) {
 }
 
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  // IST calendar date, not UTC: between 00:00 and 05:30 India time the
+  // UTC date is still yesterday, which mislabeled early-morning entries.
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  return new Date(Date.now() + IST_OFFSET_MS).toISOString().slice(0, 10);
 }

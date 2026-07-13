@@ -3,9 +3,9 @@
 import { useMemo, useRef, useState } from 'react';
 import Shell from '../../../components/Shell';
 import FarmerTypeahead from '../../../components/FarmerTypeahead';
-import { CheckIcon } from '../../../components/Icons';
+import PurchaseSummary from '../../../components/PurchaseSummary';
 import { usePurchaseStore } from '../../../stores/usePurchaseStore';
-import { formatINR, formatKg, todayISO } from '../../../utils/format';
+import { formatKg, todayISO } from '../../../utils/format';
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -24,7 +24,8 @@ export default function NewPurchasePage() {
   const [bags, setBags] = useState([]);
   const [weight, setWeight] = useState('');
   const [notes, setNotes] = useState('');
-  const [msg, setMsg] = useState(null); // { kind: 'ok' | 'err', text }
+  const [msg, setMsg] = useState(null); // { kind: 'err', text }
+  const [saved, setSaved] = useState(null); // summary shown after save
   const weightRef = useRef(null);
 
   const totalKg = useMemo(() => round2(bags.reduce((s, b) => s + b.weightKg, 0)), [bags]);
@@ -53,7 +54,7 @@ export default function NewPurchasePage() {
     if (!(amt >= 1)) return setMsg({ kind: 'err', text: 'Write the money amount.' });
 
     try {
-      await createPurchase({
+      const r = await createPurchase({
         farmerId: farmer._id,
         date,
         crop: crop.trim(),
@@ -61,9 +62,15 @@ export default function NewPurchasePage() {
         totalAmount: amt,
         notes: notes.trim(),
       });
-      setMsg({
-        kind: 'ok',
-        text: `Saved — ${bags.length} bags, ${formatKg(totalKg)}, ${formatINR(amt)} — ${farmer.name}`,
+      setSaved({
+        date: r.date,
+        farmerName: farmer.name,
+        village: farmer.village || '',
+        crop: r.crop,
+        bags: r.bags,
+        totalKg: r.totalKg,
+        totalAmount: r.totalAmount,
+        balanceAfter: r.balanceAfter,
       });
       setFarmer(null);
       setBags([]);
@@ -77,17 +84,20 @@ export default function NewPurchasePage() {
   const inputCls =
     'min-h-[48px] w-full rounded-lg border border-slate-200 px-3 py-2 text-lg focus:border-blue-700 focus:outline-none';
 
+  if (saved) {
+    return (
+      <Shell>
+        <PurchaseSummary summary={saved} onDone={() => setSaved(null)} />
+      </Shell>
+    );
+  }
+
   return (
     <Shell>
       <h1 className="mb-4 text-xl font-semibold">Buy</h1>
 
       {msg && (
-        <p
-          className={`mb-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 ${
-            msg.kind === 'ok' ? 'text-green-700' : 'text-red-700'
-          }`}
-        >
-          {msg.kind === 'ok' && <CheckIcon className="h-5 w-5 shrink-0" />}
+        <p className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-red-700">
           {msg.text}
         </p>
       )}

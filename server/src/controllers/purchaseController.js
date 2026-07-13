@@ -3,7 +3,8 @@ const { ok } = require('../utils/respond');
 const purchaseService = require('../services/purchaseService');
 
 const create = asyncHandler(async (req, res) => {
-  ok(res, await purchaseService.createPurchase(req.body, req.user), { status: 201 });
+  const { purchase, balanceAfter } = await purchaseService.createPurchase(req.body, req.user);
+  ok(res, { ...purchase.toObject(), balanceAfter }, { status: 201 });
 });
 
 const list = asyncHandler(async (req, res) => {

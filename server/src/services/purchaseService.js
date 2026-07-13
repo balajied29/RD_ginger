@@ -2,6 +2,7 @@ const Farmer = require('../models/Farmer');
 const Purchase = require('../models/Purchase');
 const { httpError } = require('../utils/respond');
 const { logAudit } = require('./auditService');
+const { getFarmerBalance } = require('./farmerService');
 
 const PAGE_SIZE = 25;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -11,9 +12,13 @@ async function assertFarmerExists(farmerId) {
   if (!farmer) throw httpError(404, 'Farmer not found');
 }
 
-/** Totals are recomputed by the model's pre-validate hook on save. */
+/**
+ * totalKg is recomputed by the model's pre-validate hook on save.
+ * balanceAfter (old balance + this purchase) feeds the saved-summary
+ * the staff see after entering the bags.
+ */
 async function createPurchase(data, actor) {
-  await assertFarmerExists(data.farmerId);
+  const balanceBefore = await getFarmerBalance(data.farmerId); // throws 404 if farmer missing
   const purchase = await Purchase.create({ ...data, createdBy: actor._id });
   await logAudit({
     actorId: actor._id,
@@ -22,7 +27,10 @@ async function createPurchase(data, actor) {
     documentId: purchase._id,
     after: purchase.toObject(),
   });
-  return purchase;
+  return {
+    purchase,
+    balanceAfter: Math.round((balanceBefore + purchase.totalAmount) * 100) / 100,
+  };
 }
 
 /** `to` is treated as an inclusive date: filter is date < to + 1 day. */
