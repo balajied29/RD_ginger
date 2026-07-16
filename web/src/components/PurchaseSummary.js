@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useAuth } from './Shell';
 import { CheckIcon } from './Icons';
+import { BagChips, BagGroups } from './EntryDetail';
 import { formatINR, formatKg, formatDate } from '../utils/format';
+import { bagLabel, groupBags } from '../utils/bags';
 
 /**
  * Shown right after a purchase is saved: every detail the staff just
@@ -15,13 +17,17 @@ export default function PurchaseSummary({ summary, onDone }) {
   const [note, setNote] = useState('');
 
   const priced = summary.totalAmount != null;
-  const bagLines = summary.bags.map((b) => `${b.bagNo}) ${b.weightKg} kg`).join(', ');
+  const groups = groupBags(summary.bags);
+  const bagLines = summary.bags
+    .map((b) => `${b.bagNo}) ${b.weightKg} kg${bagLabel(b) ? ` ${bagLabel(b)}` : ''}`)
+    .join(', ');
   const shareText = [
     'LEDGER — Purchase',
     `Date: ${formatDate(summary.date)}`,
     `Farmer: ${summary.farmerName}${summary.village ? ` (${summary.village})` : ''}`,
     `Crop: ${summary.crop}`,
     `Bags: ${summary.bags.length} — ${bagLines}`,
+    ...(groups.length > 1 ? groups.map((g) => `${g.label}: ${g.count} bags · ${formatKg(g.kg)}`) : []),
     `Total: ${formatKg(summary.totalKg)}`,
     priced ? `Money: ${formatINR(summary.totalAmount)}` : 'Money: not added yet',
     `To pay now: ${formatINR(summary.balanceAfter)}`,
@@ -73,16 +79,8 @@ export default function PurchaseSummary({ summary, onDone }) {
           <div className="text-3xl font-semibold tabular-nums">
             {summary.bags.length} bag{summary.bags.length === 1 ? '' : 's'} · {formatKg(summary.totalKg)}
           </div>
-          <div className="mt-2 flex flex-wrap justify-center gap-1">
-            {summary.bags.map((b) => (
-              <span
-                key={b.bagNo}
-                className="rounded-lg bg-slate-50 px-1.5 py-0.5 text-xs tabular-nums text-slate-600"
-              >
-                {b.bagNo}) {b.weightKg} kg
-              </span>
-            ))}
-          </div>
+          <BagChips bags={summary.bags} center />
+          <BagGroups bags={summary.bags} center />
         </div>
 
         <div className="border-b border-slate-200 py-3 text-center">

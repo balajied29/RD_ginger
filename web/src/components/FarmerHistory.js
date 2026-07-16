@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AddMoney from './AddMoney';
+import { BagChips } from './EntryDetail';
 import { api } from '../lib/api';
 import { formatINR, formatKg, formatDate } from '../utils/format';
 
@@ -61,18 +62,7 @@ export default function FarmerHistory({ farmer, onChanged }) {
                   </span>
                 )}
               </div>
-              {e.type === 'purchase' && e.bags && e.bags.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {e.bags.map((b) => (
-                    <span
-                      key={b.bagNo}
-                      className="rounded-lg bg-slate-50 px-1.5 py-0.5 text-xs tabular-nums text-slate-600"
-                    >
-                      {b.bagNo}) {b.weightKg} kg
-                    </span>
-                  ))}
-                </div>
-              )}
+              {e.type === 'purchase' && <BagChips bags={e.bags} />}
             </li>
           ))}
         </ul>

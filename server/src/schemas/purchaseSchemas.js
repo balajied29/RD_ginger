@@ -10,6 +10,8 @@ const bag = z
   .object({
     bagNo: z.number().int().positive('Bag number must be positive'),
     weightKg: z.number().min(0.1, 'Bag weight must be at least 0.1 kg'),
+    condition: z.enum(['dry', 'wet']).default('dry'),
+    grade: z.enum(['A', 'B', 'C']).default('A'),
   })
   .strict();
 

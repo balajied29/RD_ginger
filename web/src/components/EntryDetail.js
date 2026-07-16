@@ -3,19 +3,38 @@
 import { useState } from 'react';
 import AddMoney from './AddMoney';
 import { formatINR, formatKg, formatDate } from '../utils/format';
+import { bagLabel, groupBags } from '../utils/bags';
 
-/** Per-bag weights: "1) 50.2 kg  2) 48.9 kg …" as wrapping chips. */
+/** Per-bag chips: "1) 50.2 kg · Dry·A" — tags omitted on old bags. */
 export function BagChips({ bags, center = false }) {
   if (!bags || !bags.length) return null;
   return (
     <div className={`mt-1 flex flex-wrap gap-1 ${center ? 'justify-center' : ''}`}>
-      {bags.map((b) => (
-        <span
-          key={b.bagNo}
-          className="rounded-lg bg-slate-50 px-1.5 py-0.5 text-xs tabular-nums text-slate-600"
-        >
-          {b.bagNo}) {b.weightKg} kg
-        </span>
+      {bags.map((b) => {
+        const tag = bagLabel(b);
+        return (
+          <span
+            key={b.bagNo}
+            className="rounded-lg bg-slate-50 px-1.5 py-0.5 text-xs tabular-nums text-slate-600"
+          >
+            {b.bagNo}) {b.weightKg} kg{tag ? ` · ${tag}` : ''}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Group totals: "Dry·A — 2 bags · 110.0 kg" (shown when tags vary). */
+export function BagGroups({ bags, center = false }) {
+  const groups = groupBags(bags);
+  if (groups.length < 2) return null;
+  return (
+    <div className={`mt-1 text-xs text-slate-600 ${center ? 'text-center' : ''}`}>
+      {groups.map((g) => (
+        <div key={g.label} className="tabular-nums">
+          {g.label} — {g.count} bag{g.count === 1 ? '' : 's'} · {formatKg(g.kg)}
+        </div>
       ))}
     </div>
   );
@@ -28,6 +47,7 @@ export function BagChips({ bags, center = false }) {
 export default function EntryDetail({ entry, farmerName, onClose, onChanged }) {
   const [note, setNote] = useState('');
   const isBuy = entry.type === 'purchase';
+  const groups = isBuy ? groupBags(entry.bags || []) : [];
 
   const shareText = [
     `LEDGER — ${isBuy ? 'Purchase' : 'Payment'}`,
@@ -36,7 +56,12 @@ export default function EntryDetail({ entry, farmerName, onClose, onChanged }) {
     ...(isBuy
       ? [
           `Crop: ${entry.crop}`,
-          `Bags: ${entry.bagCount} — ${(entry.bags || []).map((b) => `${b.bagNo}) ${b.weightKg} kg`).join(', ')}`,
+          `Bags: ${entry.bagCount} — ${(entry.bags || [])
+            .map((b) => `${b.bagNo}) ${b.weightKg} kg${bagLabel(b) ? ` ${bagLabel(b)}` : ''}`)
+            .join(', ')}`,
+          ...(groups.length > 1
+            ? groups.map((g) => `${g.label}: ${g.count} bags · ${formatKg(g.kg)}`)
+            : []),
           `Total: ${formatKg(entry.totalKg)}`,
           entry.unpriced ? 'Money: not added yet' : `Money: ${formatINR(entry.debit)}`,
         ]
@@ -80,6 +105,7 @@ export default function EntryDetail({ entry, farmerName, onClose, onChanged }) {
               {entry.bagCount} bag{entry.bagCount === 1 ? '' : 's'} · {formatKg(entry.totalKg)}
             </div>
             <BagChips bags={entry.bags} center />
+            <BagGroups bags={entry.bags} center />
             <div className="mt-3 text-sm text-slate-600">Money</div>
             {entry.unpriced ? (
               <div className="mt-1 flex justify-center">

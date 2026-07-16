@@ -24,14 +24,16 @@ export default function NewPurchasePage() {
   const [amount, setAmount] = useState('');
   const [bags, setBags] = useState([]);
   const [weight, setWeight] = useState('');
+  const [condition, setCondition] = useState('dry'); // sticky between bags
+  const [grade, setGrade] = useState('A');
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState(null); // { kind: 'err', text }
   const [saved, setSaved] = useState(null); // summary shown after save
   const weightRef = useRef(null);
 
   const draftState = useMemo(
-    () => ({ farmer, date, crop, amount, bags, weight, notes }),
-    [farmer, date, crop, amount, bags, weight, notes]
+    () => ({ farmer, date, crop, amount, bags, weight, condition, grade, notes }),
+    [farmer, date, crop, amount, bags, weight, condition, grade, notes]
   );
   const { clearDraft } = useDraft('ledger_draft_buy', draftState, (d) => {
     if (d.farmer) setFarmer(d.farmer);
@@ -40,6 +42,8 @@ export default function NewPurchasePage() {
     if (d.amount) setAmount(d.amount);
     if (Array.isArray(d.bags) && d.bags.length) setBags(d.bags);
     if (d.weight) setWeight(d.weight);
+    if (d.condition) setCondition(d.condition);
+    if (d.grade) setGrade(d.grade);
     if (d.notes) setNotes(d.notes);
   });
 
@@ -53,6 +57,8 @@ export default function NewPurchasePage() {
     setAmount('');
     setBags([]);
     setWeight('');
+    setCondition('dry');
+    setGrade('A');
     setNotes('');
     setMsg(null);
     clearDraft();
@@ -62,7 +68,7 @@ export default function NewPurchasePage() {
     e.preventDefault();
     const w = parseFloat(weight);
     if (!w || w < 0.1) return;
-    setBags((b) => [...b, { bagNo: b.length + 1, weightKg: round2(w) }]);
+    setBags((b) => [...b, { bagNo: b.length + 1, weightKg: round2(w), condition, grade }]);
     setWeight('');
     weightRef.current?.focus();
   }
@@ -159,6 +165,10 @@ export default function NewPurchasePage() {
           bags={bags}
           weight={weight}
           setWeight={setWeight}
+          condition={condition}
+          setCondition={setCondition}
+          grade={grade}
+          setGrade={setGrade}
           onAdd={addBag}
           onRemove={removeBag}
           totalKg={totalKg}
