@@ -28,7 +28,7 @@ export default function BagEntry({
         <span className="text-sm text-slate-600">weight in kg</span>
       </div>
 
-      <div className="mb-2 grid grid-cols-[2fr_3fr] gap-2">
+      <div className="mb-2 space-y-1">
         <div className="grid grid-cols-2 gap-1">
           {['dry', 'wet'].map((c) => (
             <button key={c} type="button" onClick={() => setCondition(c)} className={selBtn(condition === c)}>
@@ -37,9 +37,9 @@ export default function BagEntry({
           ))}
         </div>
         <div className="grid grid-cols-3 gap-1">
-          {['A', 'B', 'C'].map((g) => (
+          {[['high', 'High'], ['mid', 'Mid'], ['low', 'Low']].map(([g, label]) => (
             <button key={g} type="button" onClick={() => setGrade(g)} className={selBtn(grade === g)}>
-              {g}
+              {label}
             </button>
           ))}
         </div>

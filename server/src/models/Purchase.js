@@ -14,9 +14,14 @@ const bagSchema = new mongoose.Schema(
     bagNo: { type: Number, required: true },
     weightKg: { type: Number, required: true, min: 0.1 },
     // Owner decision 2026-07-13: bags are separated by moisture and
-    // quality. Older bags without these fields render untagged.
+    // quality (high/mid/low). Older bags without these fields render
+    // untagged; A/B/C are legacy values kept so old docs still save.
     condition: { type: String, enum: ['dry', 'wet'], default: 'dry' },
-    grade: { type: String, enum: ['A', 'B', 'C'], default: 'A' },
+    grade: {
+      type: String,
+      enum: ['high', 'mid', 'low', 'A', 'B', 'C'],
+      default: 'high',
+    },
   },
   { _id: false }
 );

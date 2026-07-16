@@ -25,7 +25,7 @@ export default function NewPurchasePage() {
   const [bags, setBags] = useState([]);
   const [weight, setWeight] = useState('');
   const [condition, setCondition] = useState('dry'); // sticky between bags
-  const [grade, setGrade] = useState('A');
+  const [grade, setGrade] = useState('high');
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState(null); // { kind: 'err', text }
   const [saved, setSaved] = useState(null); // summary shown after save
@@ -40,10 +40,16 @@ export default function NewPurchasePage() {
     if (d.date) setDate(d.date);
     if (d.crop) setCrop(d.crop);
     if (d.amount) setAmount(d.amount);
-    if (Array.isArray(d.bags) && d.bags.length) setBags(d.bags);
+    if (Array.isArray(d.bags) && d.bags.length) {
+      // Strip pre-rename grades so the server default applies instead.
+      setBags(d.bags.map((b) => (
+        ['high', 'mid', 'low'].includes(b.grade) ? b : { ...b, grade: undefined }
+      )));
+    }
     if (d.weight) setWeight(d.weight);
     if (d.condition) setCondition(d.condition);
-    if (d.grade) setGrade(d.grade);
+    // Ignore grades from drafts saved before the High/Mid/Low rename.
+    if (['high', 'mid', 'low'].includes(d.grade)) setGrade(d.grade);
     if (d.notes) setNotes(d.notes);
   });
 
@@ -58,7 +64,7 @@ export default function NewPurchasePage() {
     setBags([]);
     setWeight('');
     setCondition('dry');
-    setGrade('A');
+    setGrade('high');
     setNotes('');
     setMsg(null);
     clearDraft();

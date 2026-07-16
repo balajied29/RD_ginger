@@ -2,11 +2,13 @@
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
-/** "Dry·A", "Wet·B" — empty string for old untagged bags. */
+const GRADE_LABELS = { high: 'High', mid: 'Mid', low: 'Low', A: 'A', B: 'B', C: 'C' };
+
+/** "Dry·High", "Wet·Low" — empty string for old untagged bags. */
 export function bagLabel(b) {
   const parts = [];
   if (b.condition) parts.push(b.condition === 'wet' ? 'Wet' : 'Dry');
-  if (b.grade) parts.push(b.grade);
+  if (b.grade) parts.push(GRADE_LABELS[b.grade] || b.grade);
   return parts.join('·');
 }
 
